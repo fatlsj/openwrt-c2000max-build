@@ -1,0 +1,163 @@
+name: Build C2000 Max Firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      clean_build:
+        description: 'Clean build (清除所有缓存重新编译)'
+        type: boolean
+        default: false
+        required: false
+
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6.git
+  REPO_BRANCH: mt798x-mt799x-6.6-mtwifi
+  CONFIG_FILE: defconfig/mt7987_mt7992.config
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout build scripts
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Set up build environment
+        run: |
+          sudo apt update -y
+          sudo apt full-upgrade -y
+          sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils \
+            bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler \
+            ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged \
+            help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev \
+            libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libreadline-dev libssl-dev \
+            libtool libyaml-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip \
+            p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+            python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion \
+            swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+          sudo pip3 install pyelftools --break-system-packages
+          sudo timedatectl set-timezone Asia/Shanghai
+
+      - name: Clone ImmortalWrt source
+        run: |
+          git clone --depth=1 --branch ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
+          echo "SOURCE_DIR=$PWD/immortalwrt" >> $GITHUB_ENV
+
+      - name: Apply base defconfig
+        working-directory: immortalwrt
+        run: |
+          cp -f ${{ env.CONFIG_FILE }} .config
+          make defconfig
+
+      - name: Run pre-build customization (diy-part1.sh)
+        working-directory: immortalwrt
+        run: |
+          if [ -f ../diy-part1.sh ]; then
+            bash ../diy-part1.sh
+          fi
+
+      - name: Update and install feeds
+        working-directory: immortalwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Apply custom packages via seed config
+        working-directory: immortalwrt
+        run: |
+          # Apply custom package selections
+          if [ -f ../configs/c2000max-packages.seed ]; then
+            cat ../configs/c2000max-packages.seed >> .config
+            make defconfig
+          fi
+
+      - name: Run post-build customization (diy-part2.sh)
+        working-directory: immortalwrt
+        run: |
+          if [ -f ../diy-part2.sh ]; then
+            bash ../diy-part2.sh
+          fi
+
+      - name: Show final configuration summary
+        working-directory: immortalwrt
+        run: |
+          echo "======= Target Configuration ======="
+          grep -E "^CONFIG_TARGET_BOARD|^CONFIG_TARGET_SUBTARGET|^CONFIG_TARGET_PROFILE|^CONFIG_TARGET_ARCH" .config
+          echo ""
+          echo "======= Key Packages ======="
+          grep -E "^CONFIG_PACKAGE_luci-app-openclash|^CONFIG_PACKAGE_luci-app-adguardhome|^CONFIG_PACKAGE_luci-app-samba4|^CONFIG_PACKAGE_luci-app-aria2|^CONFIG_PACKAGE_qmodem" .config || echo "(some packages may not be visible yet)"
+
+      - name: Download package sources
+        working-directory: immortalwrt
+        run: |
+          make download -j$(nproc) || make download -j1 V=s
+
+      - name: Build firmware
+        working-directory: immortalwrt
+        run: |
+          make -j$(nproc) V=s || make -j1 V=s
+
+      - name: Package firmware artifacts
+        id: package
+        run: |
+          mkdir -p release
+          SOURCE_DIR="${{ env.SOURCE_DIR }}"
+          TARGET_DIR="${SOURCE_DIR}/bin/targets/mediatek/filogic"
+
+          echo "Looking for firmware files in: $TARGET_DIR"
+
+          # Copy all firmware files (factory, sysupgrade, etc.)
+          find "$TARGET_DIR" -maxdepth 1 -type f \( -name "*.bin" -o -name "*.itb" -o -name "*.ubi" -o -name "*.img.gz" -o -name "*.tar.gz" \) -exec cp {} release/ \; 2>/dev/null || true
+
+          # Copy packages
+          find "$TARGET_DIR" -name "packages" -type d | while read pkgdir; do
+            cp -r "$pkgdir" release/packages 2>/dev/null || true
+          done
+
+          # Copy sha256sums and manifest
+          cp "$TARGET_DIR"/sha256sums release/ 2>/dev/null || true
+          cp "$TARGET_DIR"/*manifest* release/ 2>/dev/null || true
+
+          # Generate build info
+          {
+            echo "Build Time: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "Source Repo: ${{ env.REPO_URL }}"
+            echo "Source Branch: ${{ env.REPO_BRANCH }}"
+            echo "Config Base: ${{ env.CONFIG_FILE }}"
+            echo ""
+            echo "=== Target Info ==="
+            grep -E "^CONFIG_TARGET_BOARD|^CONFIG_TARGET_SUBTARGET|^CONFIG_TARGET_PROFILE|^CONFIG_TARGET_ARCH_PACKAGES|^CONFIG_LINUX" ${SOURCE_DIR}/.config
+          } > release/BUILD_INFO.txt
+
+          # List all output files
+          echo "======= Generated Files ======="
+          ls -lh release/
+          echo "files=$(ls release/ | tr '\n' ' ')" >> $GITHUB_ENV
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: C2000Max-ImmortalWrt-Firmware
+          path: release/*
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "✅ Build completed!"
+          echo "Download the firmware from the 'Artifacts' section of this workflow run."
+          echo ""
+          echo "📁 Firmware files location: release/"
+          ls -lh release/

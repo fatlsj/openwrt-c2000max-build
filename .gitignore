@@ -1,0 +1,27 @@
+# Build artifacts
+/bin/
+/build_dir/
+/staging_dir/
+/dl/
+/tmp/
+/logs/
+/feeds/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Release outputs (generated locally)
+/release/
+/*.tar.gz
+/*.zip
+
+# ImmortalWrt sources (cloned by CI)
+/immortalwrt/

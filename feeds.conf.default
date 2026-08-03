@@ -1,0 +1,18 @@
+# feeds.conf.default - Custom feeds for C2000 Max firmware
+
+# Official ImmortalWrt feeds
+src-git packages https://github.com/immortalwrt/packages.git;openwrt-24.10
+src-git luci https://github.com/immortalwrt/luci.git;openwrt-24.10
+src-git routing https://github.com/openwrt/routing.git;openwrt-24.10
+src-git telephony https://github.com/openwrt/telephony.git;openwrt-24.10
+
+# OpenClash (科学上网)
+src-git openclash https://github.com/vernesong/OpenClash.git;master
+
+# 5G Modem support (MT5700 / Balong)
+src-git qmodem https://github.com/FUjr/QModem.git;main
+src-git modem https://github.com/Siriling/5G-Modem-Support.git;main
+
+# Additional packages
+src-git kenzo https://github.com/kenzok8/openwrt-packages.git;master
+src-git small https://github.com/kenzok8/small.git;master
