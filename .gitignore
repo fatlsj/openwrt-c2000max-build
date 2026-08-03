@@ -25,3 +25,6 @@ Thumbs.db
 
 # ImmortalWrt sources (cloned by CI)
 /immortalwrt/
+
+# WorkBuddy memory (internal, not needed in repo)
+.workbuddy/
