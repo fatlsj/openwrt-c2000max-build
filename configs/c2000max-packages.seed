@@ -13,12 +13,16 @@ CONFIG_PACKAGE_luci-app-openclash=y
 # --- 广告过滤 - AdGuard Home ---
 CONFIG_PACKAGE_luci-app-adguardhome=y
 
+# --- Tailscale (VPN 组网) ---
+CONFIG_PACKAGE_tailscale=y
+CONFIG_PACKAGE_luci-app-tailscale=y
+
 # --- NAS / 文件共享 ---
-CONFIG_PACKAGE_luci-app-samba4=y
-CONFIG_PACKAGE_luci-app-aria2=y
-CONFIG_PACKAGE_luci-app-diskman=y
-CONFIG_PACKAGE_luci-app-hd-idle=y
-CONFIG_PACKAGE_luci-app-filebrowser=y
+#CONFIG_PACKAGE_luci-app-samba4=y
+#CONFIG_PACKAGE_luci-app-aria2=y
+#CONFIG_PACKAGE_luci-app-diskman=y
+#CONFIG_PACKAGE_luci-app-hd-idle=y
+#CONFIG_PACKAGE_luci-app-filebrowser=y
 
 # --- 5G 模组管理 ---
 CONFIG_PACKAGE_qmodem=y
