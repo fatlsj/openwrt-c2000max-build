@@ -27,6 +27,7 @@ add_feed "qmodem" "https://github.com/FUjr/QModem.git" "main"
 add_feed "modem" "https://github.com/Siriling/5G-Modem-Support.git" "main"
 add_feed "kenzo" "https://github.com/kenzok8/openwrt-packages.git" "master"
 add_feed "small" "https://github.com/kenzok8/small.git" "master"
+add_feed "luci_tailscale" "https://github.com/asvow/luci-app-tailscale.git" "main"
 
 echo ""
 echo "diy-part1.sh completed."
